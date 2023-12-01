@@ -23,6 +23,8 @@
 #include <sbi/sbi_timer.h>
 #include <sbi/sbi_trap.h>
 
+#define CAUSE_SUPERVISOR_ECALL_FOR_SYSCALL  0x20
+
 static void __noreturn sbi_trap_error(const char *msg, int rc,
 				      ulong mcause, ulong mtval, ulong mtval2,
 				      ulong mtinst, struct sbi_trap_regs *regs)
@@ -286,6 +288,15 @@ struct sbi_trap_regs *sbi_trap_handler(struct sbi_trap_regs *regs)
 		return regs;
 	}
 
+	if (mcause == CAUSE_SUPERVISOR_ECALL) {
+	    unsigned long extension_id = regs->a7;
+        if ((extension_id & (ulong)(0xF00000000)) == 0) {
+            // Linux Syscall
+            //sbi_printf("Linux syscall: [%lx]\n", extension_id);
+            mcause = CAUSE_SUPERVISOR_ECALL_FOR_SYSCALL;
+        }
+    }
+
 	switch (mcause) {
 	case CAUSE_ILLEGAL_INSTRUCTION:
 		rc  = sbi_illegal_insn_handler(mtval, regs);
@@ -301,7 +312,7 @@ struct sbi_trap_regs *sbi_trap_handler(struct sbi_trap_regs *regs)
 		break;
 	case CAUSE_SUPERVISOR_ECALL:
 	case CAUSE_MACHINE_ECALL:
-		rc  = sbi_ecall_handler(regs);
+		rc  = sbi_ecall_handler(regs, mcause);
 		msg = "ecall handler failed";
 		break;
 	case CAUSE_LOAD_ACCESS:
@@ -310,6 +321,10 @@ struct sbi_trap_regs *sbi_trap_handler(struct sbi_trap_regs *regs)
 			SBI_PMU_FW_ACCESS_LOAD : SBI_PMU_FW_ACCESS_STORE);
 		/* fallthrough */
 	default:
+        if (mcause == CAUSE_SUPERVISOR_ECALL_FOR_SYSCALL) {
+            mcause = CAUSE_SUPERVISOR_ECALL;
+        }
+
 		/* If the trap came from S or U mode, redirect it there */
 		trap.epc = regs->mepc;
 		trap.cause = mcause;

@@ -81,7 +81,7 @@ int sbi_ecall_register_extension(struct sbi_ecall_extension *ext);
 
 void sbi_ecall_unregister_extension(struct sbi_ecall_extension *ext);
 
-int sbi_ecall_handler(struct sbi_trap_regs *regs);
+int sbi_ecall_handler(struct sbi_trap_regs *regs, ulong mcause);
 
 int sbi_ecall_init(void);
 

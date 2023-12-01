@@ -95,7 +95,7 @@ void sbi_ecall_unregister_extension(struct sbi_ecall_extension *ext)
 		sbi_list_del_init(&ext->head);
 }
 
-int sbi_ecall_handler(struct sbi_trap_regs *regs)
+int sbi_ecall_handler(struct sbi_trap_regs *regs, ulong mcause)
 {
 	int ret = 0;
 	struct sbi_ecall_extension *ext;
@@ -104,6 +104,16 @@ int sbi_ecall_handler(struct sbi_trap_regs *regs)
 	struct sbi_trap_info trap = {0};
 	unsigned long out_val = 0;
 	bool is_0_1_spec = 0;
+
+	if (mcause == CAUSE_SUPERVISOR_ECALL) {
+        if (extension_id & (ulong)(0xF00000000)) {
+            // SBI ECall
+            extension_id &= (ulong)0xFFFFFFFF;
+            //sbi_printf("SBI ECall: [0x%lx]\n", extension_id);
+        } else {
+            // FixMe: Panic! for Linux Syscall
+        }
+    }
 
 	ext = sbi_ecall_find_extension(extension_id);
 	if (ext && ext->handle) {
